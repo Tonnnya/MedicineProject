@@ -1,6 +1,12 @@
 # CHIEF - Clinical Histopathology Imaging Evaluation Foundation Model
 <a href="https://pytorch.org/get-started/locally/"><img alt="PyTorch" src="https://img.shields.io/badge/PyTorch-ee4c2c?logo=pytorch&logoColor=white"></a>
 
+> 🇺🇦 **[Документація українською мовою / Ukrainian Documentation](README_uk.md)**
+>
+> 📚 **[Швидкий старт українською / Quick Start in Ukrainian](examples_uk/QUICK_START_uk.md)**
+>
+> 🏥 **[Посібник для українських медзакладів / Guide for Ukrainian Medical Institutions](docs_uk/INTEGRATION_GUIDE_uk.md)**
+
 ### A Pathology Foundation Model for Cancer Diagnosis and Prognosis Prediction
 
 Wang X^, Zhao J^, Marostica E, Yuan W, Jin J, Zhang J, Li R, Tang H, Wang K, Li Y, Wang F, Peng Y, Zhu J, Zhang J, Jackson CR, Zhang J, Dillon D, Lin NU, Sholl L, Denize T, Meredith D, Ligon KL, Signoretti S, Ogino S, Golden JA, Nasrallah MP, Han X, Yang S<sup>+</sup>, Yu KH<sup>+</sup>.

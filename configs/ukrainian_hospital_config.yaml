@@ -1,0 +1,310 @@
+# Конфігурація CHIEF для українських медичних закладів
+# CHIEF Configuration for Ukrainian Medical Institutions
+
+# Загальні налаштування / General Settings
+general:
+  experiment_name: "ukrainian_hospital_deployment"
+  language: "uk"
+  country: "Ukraine"
+  timezone: "Europe/Kyiv"
+  encoding: "utf-8"
+
+# Налаштування моделі / Model Configuration
+model:
+  name: "CHIEF"
+  size_arg: "small"  # Options: xs, small, big, large
+  dropout: true
+  n_classes: 2
+  pretrained_weights: "./model_weight/CHIEF_pretraining.pth"
+  patch_model_weights: "./model_weight/CHIEF_CTransPath.pth"
+
+# Налаштування даних / Data Configuration
+data:
+  # Директорії / Directories
+  slides_dir: "/data/slides"
+  features_dir: "/data/features"
+  results_dir: "/data/results"
+  temp_dir: "/data/temp"
+  archive_dir: "/data/archive"
+
+  # CSV файли з метаданими / Metadata CSV files
+  train_csv: "/data/metadata/train.csv"
+  val_csv: "/data/metadata/val.csv"
+  test_csv: "/data/metadata/test.csv"
+
+  # Формати файлів / File formats
+  supported_formats: [".svs", ".tif", ".tiff", ".ndpi", ".scn"]
+
+  # Параметри обробки / Processing parameters
+  tile_size: 224
+  magnification: 40  # 40x або 20x
+  batch_size: 1
+  num_workers: 4
+
+# Використання української локалізації / Ukrainian Localization
+localization:
+  use_ukrainian: true
+  anatomic_mapping: "./configs/anatomic_mapping_uk.yaml"
+
+  # Переклад термінів / Term translations
+  terms:
+    malignant: "злоякісний"
+    benign: "доброякісний"
+    suspicious: "підозріло"
+    normal: "норма"
+    tumor: "пухлина"
+    cancer: "рак"
+
+# Налаштування навчання / Training Configuration
+training:
+  batch_size: 1
+  num_epochs: 50
+  learning_rate: 0.0001
+  optimizer: "Adam"
+  scheduler: "ReduceLROnPlateau"
+
+  # Параметри валідації / Validation parameters
+  validation_frequency: 5  # кожні 5 епох
+  early_stopping_patience: 10
+
+  # Аугментація даних / Data augmentation
+  augmentation:
+    enabled: true
+    rotation: 90
+    flip_horizontal: true
+    flip_vertical: true
+    color_jitter: 0.1
+
+# Налаштування інференсу / Inference Configuration
+inference:
+  batch_size: 1
+  use_gpu: true
+  gpu_id: 0
+  num_gpus: 1
+
+  # Пост-обробка / Post-processing
+  confidence_threshold: 0.7
+  generate_heatmap: true
+  generate_report: true
+
+# Налаштування звітів / Report Configuration
+reports:
+  language: "uk"
+  template: "./templates/ukrainian_report_template.html"
+
+  # Інформація для звітів / Report information
+  hospital_info:
+    name: "Назва медичного закладу"
+    address: "Адреса"
+    city: "Місто"
+    country: "Україна"
+    phone: "+380 XX XXX XXXX"
+    email: "pathology@hospital.ua"
+
+  # Що включати у звіт / What to include in report
+  include:
+    patient_info: false  # Не включати для анонімності
+    slide_preview: true
+    confidence_score: true
+    heatmap: true
+    anatomic_location: true
+    diagnosis_suggestion: true
+    disclaimer: true
+
+  # Дисклеймер / Disclaimer
+  disclaimer_text: |
+    ВАЖЛИВО: Цей звіт створено автоматизованою системою аналізу
+    гістопатологічних зображень CHIEF і є лише допоміжним інструментом.
+    Остаточний діагноз має бути встановлений кваліфікованим
+    патологоанатомом на основі комплексного аналізу всіх клінічних даних.
+
+# Налаштування якості / Quality Control
+quality_control:
+  # Автоматична перевірка якості зображень
+  check_image_quality: true
+  min_tissue_area: 0.3  # мінімум 30% тканини на слайді
+  max_blur_threshold: 0.5
+
+  # Випадкова вибірка для перевірки
+  random_audit_rate: 0.1  # 10% випадкової перевірки
+
+  # Обов'язкова друга думка для критичних випадків
+  require_second_opinion:
+    enabled: true
+    conditions:
+      - low_confidence: 0.6  # якщо впевненість < 60%
+      - critical_diagnosis: ["злоякісна пухлина"]
+
+# Інтеграція з іншими системами / System Integration
+integration:
+  # PACS інтеграція
+  pacs:
+    enabled: false
+    host: "pacs.hospital.local"
+    port: 11112
+    ae_title: "CHIEF"
+    protocol: "DICOM"
+
+  # LIS інтеграція
+  lis:
+    enabled: false
+    api_endpoint: "https://lis.hospital.local/api"
+    api_key: "YOUR_API_KEY"
+    format: "HL7"
+
+  # База даних
+  database:
+    enabled: true
+    type: "postgresql"  # або "mysql", "sqlite"
+    host: "localhost"
+    port: 5432
+    name: "chief_db"
+    user: "chief_user"
+    password: "CHANGE_ME"
+
+# Безпека та приватність / Security and Privacy
+security:
+  # Анонімізація даних
+  anonymize_data: true
+  remove_metadata: true
+
+  # Шифрування
+  encrypt_at_rest: true
+  encrypt_in_transit: true
+
+  # Контроль доступу
+  access_control:
+    enabled: true
+    require_authentication: true
+    session_timeout: 3600  # 1 година
+
+  # Логування
+  audit_log:
+    enabled: true
+    log_file: "/var/log/chief/audit.log"
+    log_level: "INFO"
+
+  # Відповідність вимогам
+  compliance:
+    gdpr_compliant: true
+    hipaa_compliant: false  # не застосовується в Україні
+    ukrainian_law_compliant: true
+
+# Моніторинг та логування / Monitoring and Logging
+monitoring:
+  # System metrics
+  collect_metrics: true
+  metrics_interval: 60  # секунди
+
+  # Performance monitoring
+  track_processing_time: true
+  track_gpu_usage: true
+  track_memory_usage: true
+
+  # Alerting
+  alerts:
+    enabled: true
+    email_alerts: true
+    email_recipients: ["admin@hospital.ua"]
+
+    # Умови для сповіщень / Alert conditions
+    conditions:
+      disk_usage_threshold: 90  # %
+      gpu_memory_threshold: 90  # %
+      queue_size_threshold: 100  # items
+      error_rate_threshold: 0.05  # 5%
+
+# Резервне копіювання / Backup Configuration
+backup:
+  enabled: true
+  schedule: "0 2 * * *"  # щодня о 2:00
+  retention_days: 30
+
+  # Що копіювати / What to backup
+  include:
+    - "/data/results"
+    - "/data/metadata"
+    - "/var/log/chief"
+
+  # Куди копіювати / Backup destination
+  destination: "/backup/chief"
+  remote_backup: false
+
+# Робочий процес / Workflow Configuration
+workflow:
+  # Автоматична обробка нових зразків
+  auto_process: true
+  watch_directory: "/data/slides/incoming"
+
+  # Пріоритизація
+  prioritization:
+    enabled: true
+    rules:
+      - condition: "urgent"
+        priority: 1
+      - condition: "suspected_malignancy"
+        priority: 2
+      - condition: "routine"
+        priority: 3
+
+  # Паралельна обробка
+  parallel_processing:
+    enabled: true
+    max_concurrent: 4
+
+# Налаштування продуктивності / Performance Settings
+performance:
+  # GPU налаштування
+  use_mixed_precision: true
+  gpu_memory_fraction: 0.9
+
+  # CPU налаштування
+  num_threads: 8
+
+  # Кешування
+  cache:
+    enabled: true
+    cache_size_gb: 10
+    cache_dir: "/data/cache"
+
+# Оновлення та обслуговування / Updates and Maintenance
+maintenance:
+  # Автоматичні оновлення
+  auto_update: false
+  check_updates: true
+
+  # Планове обслуговування
+  scheduled_maintenance:
+    enabled: true
+    schedule: "0 3 * * 0"  # щонеділі о 3:00
+    tasks:
+      - "cleanup_temp_files"
+      - "optimize_database"
+      - "check_system_health"
+
+# Локальні налаштування для конкретного закладу
+# Local settings for specific institution
+institution_specific:
+  # Київський обласний онкологічний центр
+  # Kyiv Regional Oncology Center
+  kyiv_oncology:
+    enabled: false
+    department: "Патологоанатомічне відділення"
+    head_pathologist: "Проф. Іванов І.І."
+    contact: "pathology@kyiv-oncology.gov.ua"
+
+  # Львівська обласна клінічна лікарня
+  # Lviv Regional Clinical Hospital
+  lviv_hospital:
+    enabled: false
+    department: "Відділення патоморфології"
+    head_pathologist: "Д-р Петренко П.П."
+    contact: "path@lviv-hospital.gov.ua"
+
+  # Харківський медичний університет
+  # Kharkiv Medical University
+  kharkiv_university:
+    enabled: false
+    department: "Кафедра патологічної анатомії"
+    head_department: "Проф. Сидоренко С.С."
+    contact: "pathology@kharkiv-med.edu.ua"
