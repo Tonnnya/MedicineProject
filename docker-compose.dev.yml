@@ -1,0 +1,109 @@
+version: '3.8'
+
+# Docker Compose конфігурація для розробки
+# Використання: docker-compose -f docker-compose.dev.yml up
+
+services:
+  # CHIEF для розробки з монтуванням коду
+  chief-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: chief-ukraine:dev
+    container_name: chief_dev
+    hostname: chief-dev
+
+    runtime: nvidia
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+      - CUDA_VISIBLE_DEVICES=0
+      - PYTHONUNBUFFERED=1
+      - TZ=Europe/Kyiv
+      - LANG=uk_UA.UTF-8
+      - DEBUG=1
+
+    volumes:
+      # Код монтується для live reload
+      - ./:/app
+      - /app/__pycache__  # Виключаємо кеш
+
+      # Дані на хості для легкого доступу
+      - ./data/slides:/data/slides
+      - ./data/features:/data/features
+      - ./data/results:/data/results
+      - ./data/metadata:/data/metadata
+      - ./data/temp:/data/temp
+
+      # Ваги моделей
+      - ./model_weight:/app/model_weight
+
+      # Логи на хості
+      - ./logs:/var/log/chief
+
+    ports:
+      - "8000:8000"
+      - "5000:5000"
+      - "6006:6006"
+      - "8888:8888"  # Jupyter
+
+    command: /bin/bash
+
+    stdin_open: true
+    tty: true
+
+    networks:
+      - chief_dev_network
+
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+  # Jupyter Notebook для експериментів
+  jupyter:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: chief-ukraine:dev
+    container_name: chief_jupyter
+
+    runtime: nvidia
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+      - JUPYTER_ENABLE_LAB=yes
+      - TZ=Europe/Kyiv
+
+    volumes:
+      - ./:/app
+      - ./notebooks:/app/notebooks
+      - ./data:/data
+      - ./model_weight:/app/model_weight
+
+    ports:
+      - "8888:8888"
+
+    command: >
+      bash -c "pip install jupyterlab ipywidgets &&
+               jupyter lab --ip=0.0.0.0 --port=8888 --no-browser
+               --allow-root --NotebookApp.token=''
+               --NotebookApp.password=''"
+
+    networks:
+      - chief_dev_network
+
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+networks:
+  chief_dev_network:
+    driver: bridge

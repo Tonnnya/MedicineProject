@@ -1,0 +1,227 @@
+version: '3.8'
+
+services:
+  # Основний сервіс CHIEF
+  chief:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: chief-ukraine:1.0
+    container_name: chief_main
+    hostname: chief-ukraine
+    restart: unless-stopped
+
+    # GPU підтримка
+    runtime: nvidia
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+      - CUDA_VISIBLE_DEVICES=0
+      - PYTHONUNBUFFERED=1
+      - TZ=Europe/Kyiv
+      - LANG=uk_UA.UTF-8
+
+    volumes:
+      # Код проєкту
+      - ./:/app
+
+      # Дані
+      - chief_data_slides:/data/slides
+      - chief_data_features:/data/features
+      - chief_data_results:/data/results
+      - chief_data_metadata:/data/metadata
+      - chief_data_archive:/data/archive
+      - chief_data_temp:/data/temp
+      - chief_data_queue:/data/queue
+
+      # Ваги моделей
+      - ./model_weight:/app/model_weight
+
+      # Логи
+      - chief_logs:/var/log/chief
+
+      # Конфігурації
+      - ./configs:/app/configs
+
+    ports:
+      - "8000:8000"  # API сервер
+      - "5000:5000"  # Web інтерфейс
+      - "6006:6006"  # TensorBoard
+
+    # Команда за замовчуванням - інтерактивна оболонка
+    command: /bin/bash
+
+    # Інтерактивний режим
+    stdin_open: true
+    tty: true
+
+    networks:
+      - chief_network
+
+    # Обмеження ресурсів (опціонально)
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+  # PostgreSQL для зберігання метаданих та результатів
+  postgres:
+    image: postgres:14-alpine
+    container_name: chief_postgres
+    restart: unless-stopped
+
+    environment:
+      - POSTGRES_DB=chief_db
+      - POSTGRES_USER=chief_user
+      - POSTGRES_PASSWORD=chief_password_change_me
+      - TZ=Europe/Kyiv
+
+    volumes:
+      - chief_postgres_data:/var/lib/postgresql/data
+      - ./sql/init.sql:/docker-entrypoint-initdb.d/init.sql
+
+    ports:
+      - "5432:5432"
+
+    networks:
+      - chief_network
+
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U chief_user -d chief_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis для кешування та черг обробки
+  redis:
+    image: redis:7-alpine
+    container_name: chief_redis
+    restart: unless-stopped
+
+    command: redis-server --appendonly yes --requirepass chief_redis_password_change_me
+
+    volumes:
+      - chief_redis_data:/data
+
+    ports:
+      - "6379:6379"
+
+    networks:
+      - chief_network
+
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Nginx для проксі та статичних файлів
+  nginx:
+    image: nginx:alpine
+    container_name: chief_nginx
+    restart: unless-stopped
+
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ./nginx/conf.d:/etc/nginx/conf.d
+      - chief_data_results:/usr/share/nginx/html/results
+      - chief_logs_nginx:/var/log/nginx
+
+    ports:
+      - "80:80"
+      - "443:443"
+
+    networks:
+      - chief_network
+
+    depends_on:
+      - chief
+
+  # Система моніторингу - Prometheus
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: chief_prometheus
+    restart: unless-stopped
+
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - chief_prometheus_data:/prometheus
+
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+
+    ports:
+      - "9090:9090"
+
+    networks:
+      - chief_network
+
+  # Візуалізація метрик - Grafana
+  grafana:
+    image: grafana/grafana:latest
+    container_name: chief_grafana
+    restart: unless-stopped
+
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin_change_me
+      - GF_INSTALL_PLUGINS=grafana-clock-panel
+
+    volumes:
+      - chief_grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards
+      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources
+
+    ports:
+      - "3000:3000"
+
+    networks:
+      - chief_network
+
+    depends_on:
+      - prometheus
+
+volumes:
+  # Дані
+  chief_data_slides:
+    driver: local
+  chief_data_features:
+    driver: local
+  chief_data_results:
+    driver: local
+  chief_data_metadata:
+    driver: local
+  chief_data_archive:
+    driver: local
+  chief_data_temp:
+    driver: local
+  chief_data_queue:
+    driver: local
+
+  # Бази даних
+  chief_postgres_data:
+    driver: local
+  chief_redis_data:
+    driver: local
+
+  # Моніторинг
+  chief_prometheus_data:
+    driver: local
+  chief_grafana_data:
+    driver: local
+
+  # Логи
+  chief_logs:
+    driver: local
+  chief_logs_nginx:
+    driver: local
+
+networks:
+  chief_network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.25.0.0/16
